@@ -66,6 +66,35 @@ helm repo update
 ```bash
 helm upgrade --cleanup-on-fail --install jhub1 jupyterhub/jupyterhub --namespace jhub1 --create-namespace --values config.yaml
 ```
+```bash
+  kubectl get service --namespace jhub1
+```
 
+Port forward to connect to the service
+```bash
+kubectl --namespace=jhub1 port-forward service/proxy-public 8080:http
+```
+Note: If the port-forward doesnt work from the portal CLI, you can try using local terminal
+
+From the browser:
+Log on to:
+
+http://localhost:8080/
+
+Generate the token: Tokens are sent to the Hub for verification. The Hub replies with a JSON model describing the authenticated user.
+
+http://localhost:8080/hub/token
+
+Update the value of the token in the 'api_token' parameter in the python script (user_creation.py)
+
+Run python script
+py user_creation.py
+
+
+Run these commands in your cluster to get the pods and pvcs'
+```bash
+kubectl get pvc -n jhub1
+kubectl get pods -n jhub1
+```
 ## Resources
 Provide additional resource like installing choco
