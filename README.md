@@ -344,7 +344,7 @@ az aks get-credentials -n $AKS_CLUSTER_NAME -g $RG
 kubectl get nodes -o wide 
 ```
 
- # add additional nodepool
+ # add a user nodepool
 ```bash
 az aks nodepool add \ 
 --cluster-name $AKS_CLUSTER_NAME \ 
@@ -360,87 +360,113 @@ az aks nodepool add \
 --os-sku AzureLinux 
 --labels app=es  
 ```
- 
+
+ # Deploy Azure Container Storage
 ```bash
 az aks update -g IgniteACSDemo -n Ig23elsearch --enable-azure-container-storage azureDisk --azure-container-storage-nodepools $STORAGE_POOL_ZONE1_NAME 
 ```
 
- #add label
+ # Add label
 ```bash
 az aks nodepool update --cluster-name Ig23elsearch --name systempool --resource-group $RG --labels acstor.azure.com/io-engine=acstor  
 ```
 
 
-## Deploy elasticsearch
+## Elastic Search Cluster Installation 
 
+### Prepare The Cluster 
+We will use the "acstor-azuredisk" storage class 
+
+
+## We will use helm to install the ElasticSearch cluster, we will rely on the ElasticSearch chart provided by bitnami as its the easiest one to navigate. 
+
+## add the bitnami repository
 ```bash
-helm repo add bitnami https://charts.bitnami.com/bitnami 
+helm repo add bitnami https://charts.bitnami.com/bitnami
+```
+## Get the values file we'll need to update 
+```shell
+helm show values bitnami/elasticsearch > values_sample.yaml
 ```
 
+We will create our own values file (there is a sample (values_acs.yaml) in this repo you can use) where we will 
+
+1. Adjust the affinity and taints to match our node pools 
+2. adjust the number of replicas and the scaling parameters for master, data, and coordinating, and ingestion nodes
+3. configure the storage class 
+4. optionally make the elastic search service accessible using a load balancer 
+5. enable HPA for all the nodes 
+   
+
+### ElasticSearch Cluster Deployment
+
+Now that we have configured the charts, we are ready to deploy the ES cluster 
 
 ```bash
-kubectl create namespace elasticsearch 
-```
+# Create the namespace
+kubectl create namespace elasticsearch
+
+# Install elastic search using the values file 
+helm install elasticsearch-v1 bitnami/elasticsearch -n elasticsearch --values values_acs.yaml
+
+# Validate the installation, it will take around 5 minutes for all the pods to move to a 'READY' state 
+watch kubectl get pods -o wide -n elasticsearch
 
 
-```bash
-helm install elasticsearch-v1 bitnami/elasticsearch -n elasticsearch --values values_acs.yaml 
-```
-
-
-```bash
-watch kubectl get pods -o wide -n elasticsearch 
-kubectl get hpa -n elasticsearch  
-```
-
-
-```bash
+# Check the service so we can access elastic search, note the "External-IP" 
 kubectl get svc -n elasticsearch elasticsearch-v1
 ```
 
 
+## Lets store the value of the "elasticsearch-v1" service IP so we can use it later
 ```bash
-kubectl -n elasticsearch port-forward svc/elasticsearch-v1 9200:9200 &
+esip=`kubectl get svc  elasticsearch-v1 -n elasticsearch -o=jsonpath='{.status.loadBalancer.ingress[0].ip}'`
+
+export SERVICE_IP=$(kubectl get svc --namespace elasticsearch elasticsearch-v1 --template "{{ range (index .status.loadBalancer.ingress 0) }}{{ . }}{{ end }}")
+
+curl http://$SERVICE_IP:9200/
 ```
 
+## create an index 
 ```bash
-curl http://localhost:9200/ 
-```
- 
+##create an index called "acstor" with 3 replicas 
+curl -X PUT "http://$esip:9200/acstor" -H "Content-Type: application/json" -d '{
+  "settings": {
+    "number_of_replicas": 3
+  }
+}'
 
-##create an index called "acstor" with 3 replicas  
-```bash
-curl -X PUT "http://localhost:9200/acstor" -H "Content-Type: application/json" -d '{ 
-  "settings": { 
-    "number_of_replicas": 3 
-  } 
-}' 
-```
-
-##test the index  
-```bash
-curl -X GET "http://localhost:9200/acstor" 
-```
- 
-```bash
-curl -X GET /my-index-000001/_stats 
-```
- 
-```bash
-kubectl apply -f ingest-job.yaml 
- ```
-
-```bash
-kubectl get pods -l app=log-ingestion  
-kubectl logs -l app=log-ingestion -f  
-```
- 
-
-watch kubectl get pods -n elasticsearch 
-```bash
-kubectl get hpa -n elasticsearch  
+##test the index 
+curl -X GET "http://$esip:9200/acstor"
 ```
 
- ```bash
-watch kubectl get pvc -n elasticsearch
+
+## ingest some data in elasticsearch using python 
+
+# install docker
+
+## download the Dockerfile and ingest_logs.py and build the docker image
+
+# create an azure container registry (acr) from the portal
+# change the registry name to match yours
+```bash
+#Point the folder to the one having docker file
+az acr login --name IgniteCR
+az acr update --name IgniteCR --anonymous-pull-enabled
+docker build -t ignitecr.azurecr.io/my-ingest-image:1.0 .
+docker push ignitecr.azurecr.io/my-ingest-image:1.0 
+```
+
+##run the job (remember to change the image name to yours in ingest-job.yaml) also change the parallelism and completions to match your needs
+cd ..
+kubectl apply -f ingest-job.yaml
+
+##to verify the job is running
+kubectl get pods -l app=log-ingestion 
+kubectl logs -l app=log-ingestion -f 
+
+
+##watch the elastic search pods being scaled out 
+watch kubectl get pods -n elasticsearch
+kubectl get hpa -n elasticsearch 
 ```
