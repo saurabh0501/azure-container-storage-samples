@@ -54,11 +54,11 @@ Create config.yaml file to specify that each single user that will be created wi
 code config.yaml
 ```
 ```bash
-singleuser: 
-  storage: 
-    capacity: 1Gi 
-    dynamic: 
-      storageClass: acstor-azuredisk 
+singleuser:
+  storage:
+    capacity: 1Gi
+    dynamic:
+      storageClass: acstor-azuredisk
 hub:
   config:
     JupyterHub:
