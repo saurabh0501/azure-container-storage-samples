@@ -19,23 +19,23 @@ az extension add --upgrade --name aks-preview
 # Add or upgrade to the latest version of k8s-extension by running the following command.
 az extension add --upgrade --name k8s-extension
 
-# set subscription context
+# Set subscription context
 az account set --subscription <subscription-id>
 
-# register resoure providers
+# Register resoure providers
 az provider register --namespace Microsoft.ContainerService --wait 
 az provider register --namespace Microsoft.KubernetesConfiguration --wait
 
-# create a resource group
+# Create a resource group
 az group create --name <resource-group-name> --location <location>
 
-# create an AKS cluster with Azure Container Storage extension enabled
+# Create an AKS cluster with Azure Container Storage extension enabled
 az aks create -n <cluster-name> -g <resource-group-name> --node-vm-size Standard_D4s_v3 --node-count 3 --enable-azure-container-storage <storage-pool-type>
 
-# display available storage pools, one was created when Azure Container Storage was enabled
+# Display available storage pools, one was created when Azure Container Storage was enabled
 kubectl get sp –n acstor
 
-# display storage classes - there should be a storage class created that corresponds to the storage pool
+# Display storage classes - there should be a storage class created that corresponds to the storage pool
 kubectl get sc
 ```
 
