@@ -417,13 +417,9 @@ watch kubectl get pods -o wide -n elasticsearch
 kubectl get svc -n elasticsearch elasticsearch-v1
 ```
 
-
-## Lets store the value of the "elasticsearch-v1" service IP so we can use it later
+#
 ```bash
-esip=`kubectl get svc  elasticsearch-v1 -n elasticsearch -o=jsonpath='{.status.loadBalancer.ingress[0].ip}'`
-
-export SERVICE_IP=$(kubectl get svc --namespace elasticsearch elasticsearch-v1 --template "{{ range (index .status.loadBalancer.ingress 0) }}{{ . }}{{ end }}")
-
+kubectl -n elasticsearch port-forward svc/elasticsearch-v1 9200:9200 &
 curl http://$SERVICE_IP:9200/
 ```
 
@@ -448,6 +444,7 @@ curl -X GET "http://$esip:9200/acstor"
 ## download the Dockerfile and ingest_logs.py and build the docker image
 
 # create an azure container registry (acr) from the portal
+
 # change the registry name to match yours
 ```bash
 #Point the folder to the one having docker file
@@ -457,16 +454,20 @@ docker build -t ignitecr.azurecr.io/my-ingest-image:1.0 .
 docker push ignitecr.azurecr.io/my-ingest-image:1.0 
 ```
 
-##run the job (remember to change the image name to yours in ingest-job.yaml) also change the parallelism and completions to match your needs
+#run the job (remember to change the image name to yours in ingest-job.yaml) also change the parallelism and completions to match your needs
+```bash
 cd ..
 kubectl apply -f ingest-job.yaml
-
-##to verify the job is running
+```
+# to verify the job is running
+```bash
 kubectl get pods -l app=log-ingestion 
 kubectl logs -l app=log-ingestion -f 
+```
 
-
-##watch the elastic search pods being scaled out 
+# watch the elastic search pods being scaled out 
+```bash
 watch kubectl get pods -n elasticsearch
 kubectl get hpa -n elasticsearch 
 ```
+
