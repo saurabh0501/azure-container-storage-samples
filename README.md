@@ -1,57 +1,71 @@
-# Project Name
+# Introduction
 
-(short, 1-3 sentenced, description of the project)
 
-## Features
-
-This project framework provides the following features:
-
-* Feature 1
-* Feature 2
-* ...
 
 ## Getting Started
 
-### Prerequisites
-
-(ideally very short, if any)
-
-- OS
-- Library version
-- ...
+This repo contains the code and instructions to deploy Azure Container Storage using CLI and deploy workloads.
 
 ### Installation
 
-(ideally very short)
+```bash
+# Upgrade to the latest version of the aks-preview cli extension by running the following command.
+az extension add --upgrade --name aks-preview
 
-- npm install [package name]
-- mvn install
-- ...
+# Add or upgrade to the latest version of k8s-extension by running the following command.
+az extension add --upgrade --name k8s-extension
 
-### Quickstart
-(Add steps to get up and running quickly)
+# set subscription context
+az account set --subscription <subscription-id>
 
-1. git clone [repository clone url]
-2. cd [repository name]
-3. ...
+# register resoure providers
+az provider register --namespace Microsoft.ContainerService --wait 
+az provider register --namespace Microsoft.KubernetesConfiguration --wait
+
+# create a resource group
+az group create --name <resource-group-name> --location <location>
+az aks create -n <cluster-name> -g <resource-group-name> --node-vm-size Standard_D4s_v3 --node-count 3 --enable-azure-container-storage <storage-pool-type>
+
+#display available storage pools
+kubectl get sp –n acstor
+
+#display storage classes
+kubectl get sc
+```
 
 
-## Demo
 
-A demo app is included to show how to use the project.
+## Demo Jupytehub
+create config.yaml with content
 
-To run the demo, follow these steps:
+```bash
+code config.yaml
+```
+```bash
+singleuser:
+  storage:
+    capacity: 1Gi
+    dynamic:
+      storageClass: acstor-azuredisk
+hub:
+  config:
+    Authenticator:
+      admin_users:        
+        - adminuser
+```
+install jupyterhub
 
-(Add steps to start up the demo)
+```bash
+choco install kubernetes-helm
+```
 
-1.
-2.
-3.
+```bash
+helm repo add jupyterhub https://jupyterhub.github.io/helm-chart/
+helm repo update
+```
+```bash
+helm upgrade --cleanup-on-fail --install jhub1 jupyterhub/jupyterhub --namespace jhub1 --create-namespace --values config.yaml
+```
 
 ## Resources
-
-(Any additional resources or related projects)
-
-- Link to supporting information
-- Link to similar sample
-- ...
+Provide additional resource like installing choco
