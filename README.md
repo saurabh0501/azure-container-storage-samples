@@ -2,9 +2,9 @@
 
 
 
-## Getting Started
+## Getting Started with Azure Container Storage
 
-This repo contains the code and instructions to deploy Azure Container Storage using CLI and deploy workloads.
+This repo contains the code and instructions to deploy Azure Container Storage using CLI and deploy Jupyter & Kafka workloads.
 
 ### Pre-requisites
 * Install [Azure CLI](https://learn.microsoft.com/en-us/cli/azure/install-azure-cli-windows?tabs=azure-cli#install-or-update)
@@ -28,6 +28,8 @@ az provider register --namespace Microsoft.KubernetesConfiguration --wait
 
 # create a resource group
 az group create --name <resource-group-name> --location <location>
+
+# create an AKS cluster with Azure Container Storage extension enabled
 az aks create -n <cluster-name> -g <resource-group-name> --node-vm-size Standard_D4s_v3 --node-count 3 --enable-azure-container-storage <storage-pool-type>
 
 #display available storage pools
@@ -36,7 +38,6 @@ kubectl get sp –n acstor
 #display storage classes
 kubectl get sc
 ```
-
 
 ## Demo Jupytehub
 
@@ -47,22 +48,24 @@ kubectl get sc
 
 ### Deployment
 
-create config.yaml with content
+Create config.yaml file to specify that each single user that will be created will get provisioned 1 Gi of storage, from a StorageClass created via Azure Container Storage.
 
 ```bash
 code config.yaml
 ```
 ```bash
-singleuser:
-  storage:
-    capacity: 1Gi
-    dynamic:
-      storageClass: acstor-azuredisk
+singleuser: 
+  storage: 
+    capacity: 1Gi 
+    dynamic: 
+      storageClass: acstor-azuredisk 
 hub:
   config:
+    JupyterHub:
+      admin_access: false
     Authenticator:
-      admin_users:        
-        - adminuser
+      admin_users:
+        - admin
 ```
 install jupyterhub
 
@@ -107,9 +110,6 @@ Run these commands in your cluster to get the pods and pvcs'
 kubectl get pvc -n jhub1
 kubectl get pods -n jhub1
 ```
-## Resources
-Provide additional resource like installing choco
-
 
 ## Demo Kafka
 Kafka Message producer is a small Go lang application to generate X number of messages and ingest to Kafka. It's using confluent-kafka-go library. The kafka-x-messages-producer.yaml file requires some environment variables and the kafka user1 password as a secret. Environment variables are: NUM_MESSAGES, KAFKA_TOPIC, KAFKA_ADDR, KAFKA_USER and KAFKA_PASSWORD(as kubernetes secret).
