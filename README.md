@@ -24,7 +24,7 @@ az provider register --namespace Microsoft.KubernetesConfiguration --wait
 
 # create a resource group
 az group create --name <resource-group-name> --location <location>
-az aks create -n <cluster-name> -g <resource-group-name> --node-vm-size Standard_D4s_v3 --node-count 3 --enable-azure-container-storage <storage-pool-type>
+az aks create -n <cluster-name> -g <resource-group-name> --node-vm-size Standard_D4s_v3 --node-count 3 --enable-azure-container-storage azureDisk
 
 #display available storage pools
 kubectl get sp –n acstor
@@ -35,7 +35,7 @@ kubectl get sc
 
 
 
-## Demo Jupytehub
+## Demo Jupyterhub
 create config.yaml with content
 
 ```bash
