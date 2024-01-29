@@ -471,3 +471,53 @@ watch kubectl get pods -n elasticsearch
 kubectl get hpa -n elasticsearch 
 ```
 
+
+## Cassandra demo
+
+## Getting Started with Azure Container Storage
+
+This repo contains the code and instructions to deploy Azure Container Storage using CLI and deploy Jupyter & Kafka workloads.
+
+### Pre-requisites (if not running on Cloud Shell)
+* Install [Azure CLI](https://learn.microsoft.com/en-us/cli/azure/install-azure-cli-windows?tabs=azure-cli#install-or-update)
+* Install [Kubectl](https://kubernetes.io/docs/tasks/tools/install-kubectl-windows/#install-kubectl-binary-with-curl-on-windows)
+
+### Installation
+
+```bash
+# Upgrade to the latest version of the aks-preview cli extension by running the following command.
+az extension add --upgrade --name aks-preview
+
+# Add or upgrade to the latest version of k8s-extension by running the following command.
+az extension add --upgrade --name k8s-extension
+
+# Set subscription context
+az account set --subscription <subscription-id>
+
+# Register resoure providers
+az provider register --namespace Microsoft.ContainerService --wait 
+az provider register --namespace Microsoft.KubernetesConfiguration --wait
+
+# Create a resource group
+az group create --name <resource-group-name> --location <location>
+
+# Create an AKS cluster with Azure Container Storage extension enabled
+az aks create -n <cluster-name> -g <resource-group-name> --node-vm-size Standard_D4s_v3 --node-count 3 --enable-azure-container-storage ephemeralDisk
+
+kubectl apply -f acstor-storagepool.yaml
+
+kubectl describe sp ephemeraldisk -n acstor
+
+kubectl get sc
+
+kubectl apply -f acstor-pvc.yaml
+
+kubectl describe pvc ephemeralpvc
+
+helm install cassandra bitnami/cassandra -n cassandra --create-namespace --set global.storageClass=acstor-ephemeraldisk --set nodeSelector."acstor\.azure\.com/io-engine"=acstor --set dbUser.user=admin,dbUser.password=password --set replicaCount=12 --set persistence.size=32Gi --set metrics.enabled=true --wait --debug  --timeout 15m
+
+kubectl describe pod cassandra-0 -n cassandra
+
+kubectl describe pvc data-cassandra-0 -n cassandra
+
+kubectl describe sp ephemeraldisk -n acstor
