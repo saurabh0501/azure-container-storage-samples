@@ -227,7 +227,7 @@ EOF
 
 ## Elasticsearch demo
 
-# create cluster
+# create variables to use later during cluster creation
 
 ```bash
 LOCATION=eastus # Location  
@@ -269,11 +269,11 @@ STORAGE_POOL_ZONE1_NAME=espoolz1
 IDENTITY_NAME=$AKS_NAME`date +"%d%m%y"` 
 ```
 
-# create identity
+# create an identity
 ```bash
 az identity create --name $IDENTITY_NAME --resource-group $RG 
 ```
-# get the identity id and clientid, we will use them later
+# get the identity id and clientid to use later
 ```bash
 IDENTITY_ID=$(az identity show --name $IDENTITY_NAME --resource-group $RG --query id -o tsv) 
 IDENTITY_CLIENT_ID=$(az identity show --name $IDENTITY_NAME --resource-group $RG --query clientId -o tsv) 
@@ -303,13 +303,13 @@ az role assignment create --assignee $IDENTITY_CLIENT_ID --scope $RG_ID --role C
 az role assignment create --assignee $IDENTITY_CLIENT_ID --scope $VNETID --role Contributor
 ```
 
-# validate role assignment
+# Validate the role assignment
 
 ```bash
 az role assignment list --assignee $IDENTITY_CLIENT_ID --all -o table
 ```
 
-# create the cluster
+# create an AKS cluster using the variables above
 
 ```bash
 az aks create \ 
@@ -339,12 +339,12 @@ az aks create \
 az aks get-credentials -n $AKS_CLUSTER_NAME -g $RG 
 ```
  
-# check the nodes
+# Check the status of nodes
 ```bash
 kubectl get nodes -o wide 
 ```
 
- # add a user nodepool
+ # Add a user nodepool
 ```bash
 az aks nodepool add \ 
 --cluster-name $AKS_CLUSTER_NAME \ 
@@ -423,7 +423,7 @@ kubectl -n elasticsearch port-forward svc/elasticsearch-v1 9200:9200 &
 curl http://$SERVICE_IP:9200/
 ```
 
-## create an index 
+## Create an index 
 ```bash
 ##create an index called "acstor" with 3 replicas 
 curl -X PUT "http://$esip:9200/acstor" -H "Content-Type: application/json" -d '{
@@ -437,15 +437,15 @@ curl -X GET "http://$esip:9200/acstor"
 ```
 
 
-## ingest some data in elasticsearch using python 
+## Ingest some data in elasticsearch using python 
 
-# install docker
+# Install docker
 
 ## download the Dockerfile and ingest_logs.py and build the docker image
 
 # create an azure container registry (acr) from the portal
 
-# change the registry name to match yours
+# Change the registry name to match yours
 ```bash
 #Point the folder to the one having docker file
 az acr login --name IgniteCR
