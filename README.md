@@ -227,150 +227,52 @@ EOF
 
 ## Elasticsearch demo
 
-# create variables to use later during cluster creation
+This repo contains the code and instructions to deploy Azure Container Storage using CLI and deploy a ElasticSearch workload.
+
+You can read more about Azure Container Storage [here](https://learn.microsoft.com/en-us/azure/storage/container-storage/container-storage-introduction) - the industry’s first platform-managed container native storage service in the public cloud, providing highly scalable, cost-effective persistent volumes, built natively for containers.
+
+## Getting Started with Azure Container Storage
+
+### Pre-requisites
+If you are running in CloudShell, you do not need to install Azure CLI or Kubectl, but we recommend running on your local terminal as there is a JupyterHub specific step that doesn't work on CloudShell.
+* Install [Azure CLI](https://learn.microsoft.com/en-us/cli/azure/install-azure-cli-windows?tabs=azure-cli#install-or-update)
+* Install [Kubectl](https://kubernetes.io/docs/tasks/tools/install-kubectl-windows/#install-kubectl-binary-with-curl-on-windows)
+
+### Installation
 
 ```bash
-LOCATION=eastus # Location  
+# Upgrade to the latest version of the aks-preview cli extension by running the following command.
+az extension add --upgrade --name aks-preview
 
-AKS_NAME=Ig23elsearch 
+# Add or upgrade to the latest version of k8s-extension by running the following command.
+az extension add --upgrade --name k8s-extension
 
-RG=IgniteACSDemo 
+# Set subscription context
+az account set --subscription <subscription-id>
 
-AKS_VNET_NAME=$AKS_NAME-vnet # The VNET where AKS will reside 
+# Register resoure providers
+az provider register --namespace Microsoft.ContainerService --wait 
+az provider register --namespace Microsoft.KubernetesConfiguration --wait
 
-AKS_CLUSTER_NAME=$AKS_NAME # name of the cluster 
+# Create a resource group
+az group create --name <resource-group-name> --location <location>
 
-AKS_VNET_CIDR=172.16.0.0/16 
+# Create an AKS cluster with Azure Container Storage extension enabled. This will create a StoragePool of type Azure Disk by default. If you want to update the defaults (pool name, pool size or SKU), you can do so by using the parameters here: https://learn.microsoft.com/en-us/azure/storage/container-storage/container-storage-aks-quickstart#create-a-new-aks-cluster-and-install-azure-container-storage
+az aks create -n <cluster-name> -g <resource-group-name> --node-vm-size Standard_D8ds_v4 --node-count 3 --enable-azure-container-storage azureDisk --node-count 5 --nodepool-name systempool
 
-AKS_NODES_SUBNET_NAME=$AKS_NAME-subnet # the AKS nodes subnet 
+# Connect to the AKS cluster
+az aks get-credentials --resource-group <resource-group-name> --name <cluster-name>
 
-AKS_NODES_NSG_NAME=$AKS_NAME-nsg # the AKS nodes subnet 
-
-AKS_NODES_SUBNET_PREFIX=172.16.0.0/23 
-
-SERVICE_CIDR=10.0.0.0/16 
-
-DNS_IP=10.0.0.10 
-
-NETWORK_PLUGIN=azure # use Azure CNI  
-
-SYSTEM_NODE_COUNT=5  # system node pool size  
-
-USER_NODE_COUNT=6 # change this to match your needs 
-
-NODES_SKU=Standard_D4ds_v4 # node VM type (change this to match your needs) 
-
-K8S_VERSION=1.27 
-
-SYSTEM_POOL_NAME=systempool 
-
-STORAGE_POOL_ZONE1_NAME=espoolz1 
-
-IDENTITY_NAME=$AKS_NAME`date +"%d%m%y"` 
-```
-
-# create an identity
-```bash
-az identity create --name $IDENTITY_NAME --resource-group $RG 
-```
-# get the identity id and clientid to use later
-```bash
-IDENTITY_ID=$(az identity show --name $IDENTITY_NAME --resource-group $RG --query id -o tsv) 
-IDENTITY_CLIENT_ID=$(az identity show --name $IDENTITY_NAME --resource-group $RG --query clientId -o tsv) 
-```
-# Create the VNET and Subnet
-```bash
-az network vnet create \
-  --name $AKS_VNET_NAME \
-  --resource-group $RG \
-  --location $LOCATION \
-  --address-prefix $AKS_VNET_CIDR \
-  --subnet-name $AKS_NODES_SUBNET_NAME \
-  --subnet-prefix $AKS_NODES_SUBNET_PREFIX
-```
-
-# get the RG, VNET, and Subnet IDs
-```bash
-RG_ID=$(az group show -n $RG  --query id -o tsv) 
-VNETID=$(az network vnet show -g $RG --name $AKS_VNET_NAME --query id -o tsv) 
-AKS_VNET_SUBNET_ID=$(az network vnet subnet show --name $AKS_NODES_SUBNET_NAME -g $RG --vnet-name $AKS_VNET_NAME --query "id" -o tsv) 
-```
-
-# Assign the managed identity permissions on the RG and VNET
-
-```bash
-az role assignment create --assignee $IDENTITY_CLIENT_ID --scope $RG_ID --role Contributor
-az role assignment create --assignee $IDENTITY_CLIENT_ID --scope $VNETID --role Contributor
-```
-
-# Validate the role assignment
-
-```bash
-az role assignment list --assignee $IDENTITY_CLIENT_ID --all -o table
-```
-
-# create an AKS cluster using the variables above
-
-```bash
-az aks create \ 
--g $RG \ 
--n $AKS_CLUSTER_NAME \ 
--l $LOCATION \ 
---os-sku AzureLinux \ 
---node-count $SYSTEM_NODE_COUNT \ 
---node-vm-size $NODES_SKU \ 
---network-plugin $NETWORK_PLUGIN \ 
---network-plugin-mode overlay \ 
---kubernetes-version $K8S_VERSION \ 
---generate-ssh-keys \ 
---service-cidr $SERVICE_CIDR \ 
---dns-service-ip $DNS_IP \ 
---vnet-subnet-id $AKS_VNET_SUBNET_ID \ 
---enable-addons monitoring \ 
---enable-managed-identity \ 
---assign-identity $IDENTITY_ID \ 
---nodepool-name $SYSTEM_POOL_NAME \ 
---uptime-sla \ 
---zones 1  
-```
-
-#connect to the cluster
-```bash
-az aks get-credentials -n $AKS_CLUSTER_NAME -g $RG 
-```
- 
-# Check the status of nodes
-```bash
-kubectl get nodes -o wide 
-```
 
  # Add a user nodepool
 ```bash
-az aks nodepool add \ 
---cluster-name $AKS_CLUSTER_NAME \ 
---mode User \ 
---name $STORAGE_POOL_ZONE1_NAME \ 
---node-vm-size $NODES_SKU \ 
---resource-group $RG \ 
---zones 1 \ 
---enable-cluster-autoscaler \ 
---max-count 12 \ 
---min-count 6 \ 
---node-count $USER_NODE_COUNT \ 
---os-sku AzureLinux 
---labels app=es  
+  az aks nodepool add --cluster-name <cluster-name> --mode User --name espoolz1 --node-vm-size Standard_D8ds_v4 --resource-group <resource-group-name> --zones 1 --enable-cluster-autoscaler --max-count 12 --min-count 5 --node-count 5--labels app=es
 ```
 
- # Deploy Azure Container Storage
+ # Label the user node pool
 ```bash
-az aks update -g IgniteACSDemo -n Ig23elsearch --enable-azure-container-storage azureDisk --azure-container-storage-nodepools $STORAGE_POOL_ZONE1_NAME 
+ az aks nodepool update --resource-group <resource-group-name> --cluster-name <cluster-name> --name espoolz1 --labels acstor.azure.com/io-engine=acstor
 ```
-
- # Add label
-```bash
-az aks nodepool update --cluster-name Ig23elsearch --name systempool --resource-group $RG --labels acstor.azure.com/io-engine=acstor  
-```
-
 
 ## Elastic Search Cluster Installation 
 
@@ -385,11 +287,7 @@ We will use the "acstor-azuredisk" storage class
 helm repo add bitnami https://charts.bitnami.com/bitnami
 ```
 ## Get the values file we'll need to update 
-```shell
-helm show values bitnami/elasticsearch > values_sample.yaml
-```
-
-We will create our own values file (there is a sample (values_acs.yaml) in this repo you can use) where we will 
+We will create our own values file (there is a sample (values_acs.yaml) in this repo you can use) where we can 
 
 1. Adjust the affinity and taints to match our node pools 
 2. adjust the number of replicas and the scaling parameters for master, data, and coordinating, and ingestion nodes
